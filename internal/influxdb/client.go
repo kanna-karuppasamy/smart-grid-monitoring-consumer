@@ -3,7 +3,6 @@ package influxdb
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -16,7 +15,7 @@ import (
 // Client represents an InfluxDB v2 client
 type Client struct {
 	client   influxdb2.Client
-	writeAPI api.WriteAPIBlocking
+	writeAPI api.WriteAPI
 	config   config.InfluxDBConfig
 }
 
@@ -27,26 +26,13 @@ func NewClient(cfg config.InfluxDBConfig) (*Client, error) {
 
 	// Create the client
 	client := influxdb2.NewClient(cfg.URL, cfg.Token)
-	writeAPI := client.WriteAPIBlocking(cfg.Org, cfg.Bucket)
+	writeAPI := client.WriteAPI(cfg.Org, cfg.Bucket)
 
 	// Add a health check to verify credentials
 	_, err := client.Health(context.Background())
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("failed to connect to InfluxDB: %v", err)
-	}
-
-	// Additional check: try writing a dummy point
-	testPoint := write.NewPoint(
-		"connection_test",
-		map[string]string{"test": "connection"},
-		map[string]interface{}{"value": 1},
-		time.Now(),
-	)
-
-	if err := writeAPI.WritePoint(context.Background(), testPoint); err != nil {
-		client.Close()
-		return nil, fmt.Errorf("authentication failed or unable to write to bucket: %v", err)
 	}
 
 	fmt.Println("Loaded Client Successfully - Connection Verified")
@@ -60,6 +46,8 @@ func NewClient(cfg config.InfluxDBConfig) (*Client, error) {
 // WriteTransactions writes transactions to InfluxDB v2
 func (c *Client) WriteTransactions(transactions []models.Transaction) error {
 	fmt.Println("WriteTransactions")
+	fmt.Println(transactions[0].ConsumptionKWh)
+	fmt.Println(transactions[10].ConsumptionKWh)
 	for _, tx := range transactions {
 		point := write.NewPoint(
 			"energy_consumption",
@@ -79,10 +67,7 @@ func (c *Client) WriteTransactions(transactions []models.Transaction) error {
 		)
 
 		// Write the point
-		if err := c.writeAPI.WritePoint(context.Background(), point); err != nil {
-			log.Printf("Error writing to InfluxDB: %v", err)
-			return err
-		}
+		c.writeAPI.WritePoint(point)
 	}
 
 	return nil
@@ -103,10 +88,7 @@ func (c *Client) WriteStatusCounts(counts []models.StatusCount, timestamp time.T
 			timestamp,
 		)
 
-		if err := c.writeAPI.WritePoint(context.Background(), point); err != nil {
-			log.Printf("Error writing status counts to InfluxDB: %v", err)
-			return err
-		}
+		c.writeAPI.WritePoint(point)
 	}
 
 	return nil
@@ -130,10 +112,7 @@ func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, 
 			timestamp,
 		)
 
-		if err := c.writeAPI.WritePoint(context.Background(), point); err != nil {
-			log.Printf("Error writing region consumption to InfluxDB: %v", err)
-			return err
-		}
+		c.writeAPI.WritePoint(point)
 	}
 
 	return nil
@@ -141,7 +120,7 @@ func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, 
 
 // WriteTimeSeriesPoints writes time series data points to InfluxDB
 func (c *Client) WriteTimeSeriesPoints(points []models.TimeSeriesPoint) error {
-	fmt.Println("WriteTransactions")
+	fmt.Println("WriteTimeSeriesPoints")
 	for _, p := range points {
 		point := write.NewPoint(
 			"consumption_timeseries",
@@ -156,10 +135,7 @@ func (c *Client) WriteTimeSeriesPoints(points []models.TimeSeriesPoint) error {
 			p.Timestamp,
 		)
 
-		if err := c.writeAPI.WritePoint(context.Background(), point); err != nil {
-			log.Printf("Error writing time series points to InfluxDB: %v", err)
-			return err
-		}
+		c.writeAPI.WritePoint(point)
 	}
 
 	return nil

@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 			Brokers:       getEnvStringSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
 			Topic:         getEnv("KAFKA_TOPIC", "smart-grid-readings"),
 			GroupID:       getEnv("KAFKA_GROUP_ID", "smart-grid-monitoring-consumer"),
-			ConsumerCount: getEnvInt("KAFKA_CONSUMER_COUNT", 12), // Match partition count
+			ConsumerCount: getEnvInt("KAFKA_CONSUMER_COUNT", 6), // Match partition count
 			BatchSize:     getEnvInt("KAFKA_BATCH_SIZE", 10000),
 			BatchTimeout:  getEnvDuration("KAFKA_BATCH_TIMEOUT", 1*time.Second),
 		},
@@ -61,7 +61,7 @@ func Load() (*Config, error) {
 			BatchTimeout: getEnvDuration("INFLUXDB_BATCH_TIMEOUT", 500*time.Millisecond),
 		},
 		Processor: ProcessorConfig{
-			WorkerCount:        getEnvInt("PROCESSOR_WORKER_COUNT", 4),
+			WorkerCount:        getEnvInt("PROCESSOR_WORKER_COUNT", 6),
 			QueueSize:          getEnvInt("PROCESSOR_QUEUE_SIZE", 1000000),
 			EnableAggregations: getEnvBool("PROCESSOR_ENABLE_AGGREGATIONS", true),
 		},

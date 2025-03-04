@@ -7,15 +7,15 @@ import (
 // Transaction represents a smart meter reading transaction
 type Transaction struct {
 	ID             string    `json:"id"`
-	MeterID        string    `json:"meter_id"`
+	MeterID        string    `json:"meterId"`
 	Timestamp      time.Time `json:"timestamp"`
-	ConsumptionKWh float64   `json:"consumption_kwh"`
+	ConsumptionKWh float64   `json:"consumptionKWh"`
 	Latitude       float64   `json:"latitude"`
 	Longitude      float64   `json:"longitude"`
 	Region         string    `json:"region"`
 	Status         string    `json:"status"`
-	BuildingType   string    `json:"building_type"`
-	PeakLoad       bool      `json:"peak_load"`
+	BuildingType   string    `json:"buildingType"`
+	PeakLoad       bool      `json:"peakLoad"`
 }
 
 // StatusCount represents aggregated count of meters by status
