@@ -21,9 +21,6 @@ type Client struct {
 
 // NewClient initializes the InfluxDB v2 client and verifies connectivity
 func NewClient(cfg config.InfluxDBConfig) (*Client, error) {
-	fmt.Println(cfg.Token)
-	fmt.Println(cfg.URL)
-
 	// Create the client
 	client := influxdb2.NewClient(cfg.URL, cfg.Token)
 	writeAPI := client.WriteAPI(cfg.Org, cfg.Bucket)
@@ -45,9 +42,6 @@ func NewClient(cfg config.InfluxDBConfig) (*Client, error) {
 
 // WriteTransactions writes transactions to InfluxDB v2
 func (c *Client) WriteTransactions(transactions []models.Transaction) error {
-	fmt.Println("WriteTransactions")
-	fmt.Println(transactions[0].ConsumptionKWh)
-	fmt.Println(transactions[10].ConsumptionKWh)
 	for _, tx := range transactions {
 		point := write.NewPoint(
 			"energy_consumption",
@@ -75,7 +69,6 @@ func (c *Client) WriteTransactions(transactions []models.Transaction) error {
 
 // WriteStatusCounts writes aggregated status counts to InfluxDB
 func (c *Client) WriteStatusCounts(counts []models.StatusCount, timestamp time.Time) error {
-	fmt.Println("WriteStatusCounts")
 	for _, count := range counts {
 		point := write.NewPoint(
 			"meter_status_counts",
@@ -96,7 +89,6 @@ func (c *Client) WriteStatusCounts(counts []models.StatusCount, timestamp time.T
 
 // WriteRegionConsumption writes aggregated region consumption to InfluxDB
 func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, timestamp time.Time) error {
-	fmt.Println("WriteRegionConsumption")
 	for _, rc := range consumption {
 		point := write.NewPoint(
 			"region_consumption",
@@ -120,7 +112,6 @@ func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, 
 
 // WriteTimeSeriesPoints writes time series data points to InfluxDB
 func (c *Client) WriteTimeSeriesPoints(points []models.TimeSeriesPoint) error {
-	fmt.Println("WriteTimeSeriesPoints")
 	for _, p := range points {
 		point := write.NewPoint(
 			"consumption_timeseries",
