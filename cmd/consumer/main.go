@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/kanna-karuppasamy/smart-grid-monitoring-consumer/internal/config"
 	"github.com/kanna-karuppasamy/smart-grid-monitoring-consumer/internal/influxdb"
@@ -27,14 +28,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create InfluxDB client: %v", err)
 	}
-	defer influxClient.Close()
+	// Don't use defer for closing here, we'll explicitly close after consumers are stopped
 
 	// Initialize processor
 	proc := processor.NewProcessor(influxClient, cfg.Processor)
 
 	// Create context that can be canceled
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Handle termination signals
 	sigChan := make(chan os.Signal, 1)
@@ -77,8 +77,30 @@ func main() {
 	// Cancel context to stop consumers
 	cancel()
 
-	// Wait for all consumers to finish
-	wg.Wait()
+	// Set a deadline for clean shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
 
-	log.Println("All consumers stopped. Shutdown complete.")
+	// Create a channel to signal when all consumers are done
+	done := make(chan struct{})
+
+	go func() {
+		// Wait for all consumers to finish
+		wg.Wait()
+		close(done)
+	}()
+
+	// Wait for either all consumers to stop or the timeout
+	select {
+	case <-done:
+		log.Println("All consumers stopped successfully")
+	case <-shutdownCtx.Done():
+		log.Println("Shutdown timed out, forcing exit")
+	}
+
+	// Now it's safe to close the InfluxDB client
+	log.Println("Closing InfluxDB client...")
+	influxClient.Close()
+
+	log.Println("Shutdown complete.")
 }

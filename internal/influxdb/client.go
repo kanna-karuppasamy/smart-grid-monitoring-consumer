@@ -3,6 +3,7 @@ package influxdb
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -17,6 +18,8 @@ type Client struct {
 	client   influxdb2.Client
 	writeAPI api.WriteAPI
 	config   config.InfluxDBConfig
+	mu       sync.RWMutex
+	closed   bool
 }
 
 // NewClient initializes the InfluxDB v2 client and verifies connectivity
@@ -37,11 +40,18 @@ func NewClient(cfg config.InfluxDBConfig) (*Client, error) {
 		client:   client,
 		writeAPI: writeAPI,
 		config:   cfg,
+		closed:   false,
 	}, nil
 }
 
 // WriteTransactions writes transactions to InfluxDB v2
 func (c *Client) WriteTransactions(transactions []models.Transaction) error {
+	c.mu.RLock()
+	if c.closed {
+		c.mu.RUnlock()
+		return fmt.Errorf("client is closed")
+	}
+
 	for _, tx := range transactions {
 		point := write.NewPoint(
 			"energy_consumption",
@@ -63,12 +73,19 @@ func (c *Client) WriteTransactions(transactions []models.Transaction) error {
 		// Write the point
 		c.writeAPI.WritePoint(point)
 	}
+	c.mu.RUnlock()
 
 	return nil
 }
 
 // WriteStatusCounts writes aggregated status counts to InfluxDB
 func (c *Client) WriteStatusCounts(counts []models.StatusCount, timestamp time.Time) error {
+	c.mu.RLock()
+	if c.closed {
+		c.mu.RUnlock()
+		return fmt.Errorf("client is closed")
+	}
+
 	for _, count := range counts {
 		point := write.NewPoint(
 			"meter_status_counts",
@@ -83,12 +100,19 @@ func (c *Client) WriteStatusCounts(counts []models.StatusCount, timestamp time.T
 
 		c.writeAPI.WritePoint(point)
 	}
+	c.mu.RUnlock()
 
 	return nil
 }
 
 // WriteRegionConsumption writes aggregated region consumption to InfluxDB
 func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, timestamp time.Time) error {
+	c.mu.RLock()
+	if c.closed {
+		c.mu.RUnlock()
+		return fmt.Errorf("client is closed")
+	}
+
 	for _, rc := range consumption {
 		point := write.NewPoint(
 			"region_consumption",
@@ -106,12 +130,19 @@ func (c *Client) WriteRegionConsumption(consumption []models.RegionConsumption, 
 
 		c.writeAPI.WritePoint(point)
 	}
+	c.mu.RUnlock()
 
 	return nil
 }
 
 // WriteTimeSeriesPoints writes time series data points to InfluxDB
 func (c *Client) WriteTimeSeriesPoints(points []models.TimeSeriesPoint) error {
+	c.mu.RLock()
+	if c.closed {
+		c.mu.RUnlock()
+		return fmt.Errorf("client is closed")
+	}
+
 	for _, p := range points {
 		point := write.NewPoint(
 			"consumption_timeseries",
@@ -128,11 +159,19 @@ func (c *Client) WriteTimeSeriesPoints(points []models.TimeSeriesPoint) error {
 
 		c.writeAPI.WritePoint(point)
 	}
+	c.mu.RUnlock()
 
 	return nil
 }
 
-// Close closes the InfluxDB client
+// Close gracefully closes the InfluxDB client
 func (c *Client) Close() {
-	c.client.Close()
+	c.mu.Lock()
+	if !c.closed {
+		c.closed = true
+		// Flush any pending writes before closing
+		c.writeAPI.Flush()
+		c.client.Close()
+	}
+	c.mu.Unlock()
 }
